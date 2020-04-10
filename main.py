@@ -22,7 +22,7 @@ s.listen(5)
 
 data_out = bytearray(b'\x00')    # initialize to zero
 data_in = bytearray(b'\x00')    # initialize to zero
-command = bytearray(b'\xBA')  # list command from master to slave
+c_List = bytearray(b'\xBA')  # list command from master to slave
 ackMaster = bytearray(b'\xE3')  # ack from master to slave
 ackSlave = bytearray(b'\xCE')  # ack byte from slave
 status = bytearray(b'\x00')  # initialize to zero
@@ -34,67 +34,40 @@ while True:
     #print('Got a connection from %s' % str(addr))
     request = conn.recv(1024)
     request = str(request)
-    #print('Content = %s' % request)
-    spitest = request.find('/?spitest=now')
+    print('Content = %s' % request)
 
-    if spitest == 6:
-        print('\nSpi test {} ...'.format(i))
+    if request.find('/?spitest=now') == 6:
         i += 1
-        spi.write_readinto(command, status)
-        command_text = str(hex(command[0]))
+        print('\nSpi test {} ...'.format(i))
+        spi.write_readinto(c_List, status)
+        time.sleep_ms(100)  # sleep 10 msec
+        command_text = str(hex(c_List[0]))
         status_text = str(hex(status[0]))
         print("Master: " + command_text)
         print("Slave: " + status_text)
+        #send master ack and get data size
+        if status == ackSlave:
+            spi.write_readinto(ackMaster, status)
+            time.sleep_ms(100)  # sleep 10 msec
+            if status[0] > 0: #data size is not zero -> continue
+                command_text = str(hex(ackMaster[0]))
+                status_text = str(hex(status[0]))
+                print("Master: " + command_text)
+                print("Slave: " + status_text)
+                size = int(status[0])
+                #prepare buffers size
+                new_data_in = bytearray(b"\x00"*size)
+                new_data_out = bytearray(b'\x01'*size)
 
-    #else:
-    #     # send command for slave to list data
-    #     if prev_command != command:
-    #         spi.write_readinto(command, status)
-    #         prev_command = command
-    #         print("Master sent list command: " + str(command))
-    #     time.sleep_ms(500)  # sleep 500 msec
-    #
-    # if status[0] > 0:
-    #     print("Slave data incoming: " + str(status))
-    #
-    #     if status == ackSlave and prev_command == command: # got ackByte from slave
-    #         print("Data is Ack. Master will send Ack and get data size")
-    #         #time.sleep_ms(500)  # sleep 500 msec
-    #         #  write master ack and receive data size
-    #         spi.write_readinto(ackMaster, status)
-    #         prev_command = ackMaster
-    #         #time.sleep_ms(500)  # sleep 500 usec
-    #     elif status != ackSlave and prev_command == ackMaster: #size of data is > 0 so prepare buffer sizes
-    #         print("Slave data size: " + status[0])
-    #         size = int(status[0])
-    #         new_data_in = bytearray(b"\x00"*size)
-    #         new_data_out = bytearray(b'\x00'*size)
-    #
-    #         #send clock to get the data
-    #         spi.write_readinto(new_data_out, new_data_in)
-    #
-    #         #restart sequence
-    #         prev_command = bytearray(b'\x00')
-    #
-    #         if new_data_in[0] > 0:
-    #             print("Dummy out " + str(new_data_out))
-    #             print("Incoming data " + str(new_data_in))
-    #             data_out = new_data_out
-    #             data_in = new_data_in
-    #         else:
-    #             print("Master sent clock but not data was received from slave")
-    #
-    #     else:
-    #         print("Ups lost in sequence.. Try to restart...")
-    #         prev_command = bytearray(b'\x00')
-    # else:
-    #     print("No data from slave!")
-    #     prev_command = bytearray(b'\x00')
+                #send clock to get the data
+                spi.write_readinto(new_data_out, new_data_in)
+                time.sleep_ms(100)  # sleep 10 msec
+                response = web.web_page(str(command_text), str(new_data_in), str(i))
+    else:
+        response = web.web_page("fail...", "fail...", str(i))
 
-    time.sleep_ms(500)  # sleep 1 sec
+    time.sleep_ms(200)  # sleep 1 sec
 
-
-    response = web.web_page(command_text, status_text, str(i))
     conn.send('HTTP/1.1 200 OK\n')
     conn.send('Content-Type: text/html\n')
     conn.send('Connection: close\n\n')
