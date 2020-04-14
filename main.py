@@ -23,6 +23,7 @@ s.listen(5)
 data_out = bytearray(b'\x00')    # initialize to zero
 data_in = bytearray(b'\x00')    # initialize to zero
 c_List = bytearray(b'\xBA')  # list command from master to slave
+c_List2 = bytearray(b'\xBB')  # list command from master to slave
 ackMaster = bytearray(b'\xE3')  # ack from master to slave
 ackSlave = bytearray(b'\xCE')  # ack byte from slave
 status = bytearray(b'\x00')  # initialize to zero
@@ -36,10 +37,37 @@ while True:
     request = str(request)
     print('Content = %s' % request)
 
-    if request.find('/?spitest=now') == 6:
+    if request.find('/?spitest1=now') == 6:
         i += 1
         print('\nSpi test {} ...'.format(i))
         spi.write_readinto(c_List, status)
+        time.sleep_ms(100)  # sleep 10 msec
+        command_text = str(hex(c_List[0]))
+        status_text = str(hex(status[0]))
+        print("Master: " + command_text)
+        print("Slave: " + status_text)
+        #send master ack and get data size
+        if status == ackSlave:
+            spi.write_readinto(ackMaster, status)
+            time.sleep_ms(100)  # sleep 10 msec
+            if status[0] > 0: #data size is not zero -> continue
+                command_text = str(hex(ackMaster[0]))
+                status_text = str(hex(status[0]))
+                print("Master: " + command_text)
+                print("Slave: " + status_text)
+                size = int(status[0])
+                #prepare buffers size
+                new_data_in = bytearray(b"\x00"*size)
+                new_data_out = bytearray(b'\x01'*size)
+
+                #send clock to get the data
+                spi.write_readinto(new_data_out, new_data_in)
+                time.sleep_ms(100)  # sleep 10 msec
+                response = web.web_page(str(command_text), str(new_data_in), str(i))
+    elif request.find('/?spitest2=now') == 6:
+        i += 1
+        print('\nSpi test {} ...'.format(i))
+        spi.write_readinto(c_List2, status)
         time.sleep_ms(100)  # sleep 10 msec
         command_text = str(hex(c_List[0]))
         status_text = str(hex(status[0]))

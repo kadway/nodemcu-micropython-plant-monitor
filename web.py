@@ -12,7 +12,8 @@ def web_page(spi_out, spi_in, i):
 
   <p>spi_out: <strong>""" + spi_out + """</strong></p>
   <p>spi_in: <strong>""" + spi_in + """</strong></p>
-  <p><a href="/?spitest=now"><button class="button">Test SPI now</button></a></p>
+  <p><a href="/?spitest1=now"><button class="button">Test1 SPI</button></a></p>
+  <p><a href="/?spitest2=now"><button class="button">Test2 SPI</button></a></p>
   <p><a href="/?spitest=none"><button class="button">do nothing</button></a></p>
   <button onclick="myFunction()">Click me</button>
   <p id="demo"></p>
