@@ -1,18 +1,26 @@
 import time
 from struct import unpack
+from machine import Pin, SPI
+from definitions import *
+
 generalConf = {}
 areaConf = {}
 
+stm32_spi_reset_pin = Pin(5, Pin.OUT) # Pin 5 or D1 on node mcu
+
+def reset_stm32_spi(pin):
+    stm32_spi_reset_pin.off()
+    time.sleep_ms(5)
+    stm32_spi_reset_pin.on()
+    time.sleep_ms(5)
+    stm32_spi_reset_pin.off()
+    time.sleep_ms(1000)
+
 def spiStm32(spi, command, sleeptime):
-    status = bytearray(b'\x00')  # initialize to zero
-    dummyByte = bytearray(b'\x00')
-    nElementsByte = bytearray(b'\x00\x00\x00\x00') # initialize to zero
-    ackMaster = bytearray(b'\xE3\xE3\xE3\xE3')  # ack from master to slave
-    ackSlave = bytearray(b'\xCE')  # ack byte from slave
-    c_getConf = bytearray(b'\xAA')  # list command from master to slave
-    c_getArea = bytearray(b'\xBA')  # list command from master to slave
-    confSize = 20
-    areaSize = 48
+
+    byteArr = bytearray()
+    byteArr_txt = ''
+
     spi.write_readinto(command, status)
     time.sleep_ms(sleeptime)  # sleep 10 msec
     command_text = str(hex(command[0]))
@@ -20,16 +28,15 @@ def spiStm32(spi, command, sleeptime):
     print("Master: " + command_text)
     print("Slave: " + status_text)
 
-    config = bytearray()
-    config_txt = ''
     if status == ackSlave:
         if command == c_getConf:
             print("Get conf")
-            byteArr, config_txt = spiGetBytes(spi, confSize, sleeptime)
+            byteArr, byteArr_txt = spiGetBytes(spi, confSize, sleeptime)
             # add items to general conf dictionary
             unpack_general_conf(byteArr)
             print(generalConf)
-        elif command == c_getArea:
+
+        elif command == c_getArea or command == c_getDataAdc or command == c_getDataAct:
             if status == ackSlave:
                 print("Get area")
                 spi.write_readinto(ackMaster, nElementsByte) #get number of elements
@@ -38,19 +45,43 @@ def spiStm32(spi, command, sleeptime):
                 x = unpack('<HH', nElementsByte)
                 nElements = x[0] | x[1] << 16
                 if nElements > 0: #data size is not zero -> continue
-                    print("area has " + str(nElements) + " elements")
-                    for j in range(nElements):
-                        byteArr, config_txt = spiGetBytes(spi, areaSize, sleeptime)
-                        unpack_area_conf(byteArr, j)
-                        #time.sleep_ms(500)  # sleep msec
-                    print(areaConf)
+                    if(command == c_getArea):
+                        print("area has " + str(nElements) + " elements")
+                        for j in range(nElements):
+                            byteArr, byteArr_txt = spiGetBytes(spi, areaSize, sleeptime)
+                            unpack_area_conf(byteArr, j)
+                            #time.sleep_ms(500)  # sleep msec
+                        print(areaConf)
+                    elif (command == c_getDataAdc):
+                         print("adc data has " + str(nElements) + " elements")
+                         for j in range(nElements):
+                            byteArr, byteArr_txt = spiGetBytes(spi, adcDataSize, sleeptime)
+                            print("data " + str(j) +" "+ byteArr_txt)
+                            #unpack_area_conf(byteArr, j)
+                            # time.sleep_ms(500)  # sleep msec
+                            #print(areaConf)
+                    elif (command == c_getDataAct):
+                         print("adc data has " + str(nElements) + " elements")
+                         for j in range(nElements):
+                            byteArr, byteArr_txt = spiGetBytes(spi, actDataSize, sleeptime)
+                            print("data " + str(j) +" "+ byteArr_txt)
+                            #unpack_area_conf(byteArr, j)
+                            # time.sleep_ms(500)  # sleep msec
+                            #print(areaConf)
+
                 else:
                     print("slave sent bad element number")
     else:
         print("slave did not ack!")
         config = bytearray(b'\x00')
-        config_txt = 'fail'
-    return config, config_txt
+        byteArr_txt = 'fail'
+        #reconfigure this spi
+        spi = SPI(1, baudrate=40000000, polarity=0, phase=0)
+        time.sleep_ms(1000)
+        #reconfigure stm32 spi
+        reset_stm32_spi(stm32_spi_reset_pin)
+
+    return byteArr, byteArr_txt
 
 def spiGetBytes(spi, nBytes, delay):
     recv = bytearray(b'\x00'*nBytes)  # initialize to zero
@@ -64,7 +95,7 @@ def spiGetBytes(spi, nBytes, delay):
     #status_text = str(hex(recv))
     # status_text = str(recv[0])
     #config_txt += status_text + "\n"
-    print("Slave: " + bytes_text)
+    #print("Slave: " + bytes_text)
     return recv, bytes_text
 
 def unpack_general_conf(byteArr):

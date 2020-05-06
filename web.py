@@ -10,11 +10,11 @@ def web_page(spi_out, spi_in, i):
   <body> 
   <h1>Johny's ESP Web Server SPI test nr: <strong>""" + i + """</strong></h1> 
 
-  <p>spi_out: <strong>""" + spi_out + """</strong></p>
-  <p>spi_in: <strong>""" + spi_in + """</strong></p>
-  <p><a href="/?spitest1=now"><button class="button">Test1 SPI</button></a></p>
-  <p><a href="/?spitest2=now"><button class="button">Test2 SPI</button></a></p>
-  <p><a href="/?spitest=none"><button class="button">do nothing</button></a></p>
+
+  <p><a href="/?spitest1=now"><button class="button">Configuration</button></a></p>
+  <p><a href="/?spitest2=now"><button class="button">Area</button></a></p>
+  <p><a href="/?spitest3=now"><button class="button">ADC</button></a></p>
+  <p><a href="/?spitest4=now"><button class="button">Actuation</button></a></p>
   <button onclick="myFunction()">Click me</button>
   <p id="demo"></p>
   <script>
@@ -27,3 +27,5 @@ def web_page(spi_out, spi_in, i):
     return html
 
 # <meta http-equiv="refresh" content="1" >
+ # <p>spi_out: <strong>""" + spi_out + """</strong></p>
+ # <p>spi_in: <strong>""" + spi_in + """</strong></p>

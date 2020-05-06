@@ -12,27 +12,19 @@ import web
 import ubinascii
 import time
 import spistm
+from definitions import *
 
 # configure spi
 #spi = SPI(-1, baudrate=200000, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(0), mosi=Pin(2), miso=Pin(4))
 #spi.init(baudrate=200000)  # set the baudrate
+
 # configure HW spi
 spi = SPI(1, baudrate=40000000, polarity=0, phase=0)
-
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind(('', 80))
 s.listen(5)
 
-data_out = bytearray(b'\x00')    # initialize to zero
-data_in = bytearray(b'\x00')    # initialize to zero
-c_getConf = bytearray(b'\xAA')  # list command from master to slave
-c_getArea = bytearray(b'\xBA')  # list command from master to slave
-ackMaster = bytearray(b'\xE3\xE3\xE3\xE3')  # ack from master to slave
-ackSlave = bytearray(b'\xCE')  # ack byte from slave
-status = bytearray(b'\x00')  # initialize to zero
-dummy = bytearray(b'\xAA')  # dummy byte
-prev_command = bytearray(b'\x00') # initialize to zero
-sleeptime = 300
+sleeptime = 1
 i = 0
 
 while True:
@@ -46,8 +38,8 @@ while True:
         if request.find('/?spitest1=now') == 6:
             i += 1
             print('\nSpi test {} ...'.format(i))
-            command_text = str(hex(c_getConf[0]))
-            config, config_txt = spistm.spiStm32(spi, c_getConf,sleeptime)
+            command_text = str(hex(c_getDataAct[0]))
+            config, config_txt = spistm.spiStm32(spi, c_getDataAct,sleeptime)
             #response = web.web_page(command_text, config_txt, str(i))
         elif request.find('/?spitest2=now') == 6:
             print('\nSpi test {} ...'.format(i))
@@ -55,6 +47,16 @@ while True:
             command_text = str(hex(c_getConf[0]))
             config, config_txt = spistm.spiStm32(spi, c_getArea,sleeptime)
             #response = web.web_page(command_text, config_txt, str(i))
+        elif request.find('/?spitest3=now') == 6:
+            print('\nSpi test {} ...'.format(i))
+            i += 1
+            command_text = str(hex(c_getDataAdc[0]))
+            config, config_txt = spistm.spiStm32(spi, c_getDataAdc, sleeptime)
+        elif request.find('/?spitest4=now') == 6:
+            print('\nSpi test {} ...'.format(i))
+            i += 1
+            command_text = str(hex(c_getDataAct[0]))
+            config, config_txt = spistm.spiStm32(spi, c_getDataAct, sleeptime)
         else:
             response = web.web_page("fail...", "fail...", str(i))
 
@@ -63,5 +65,9 @@ while True:
         conn.send('HTTP/1.1 200 OK\n')
         conn.send('Content-Type: text/html\n')
         conn.send('Connection: close\n\n')
-        conn.sendall(response)
+        try:
+            conn.sendall(response)
+        except:
+            print("Some problem occurred when trying to send response")
+
         conn.close()
