@@ -29,3 +29,11 @@ confSize = 20
 areaSize = 48
 adcDataSize = 36
 actDataSize = 12
+
+#command definitions for json socket requests
+get_general_conf = b'get_general_config'
+set_general_conf = b'set_general_config'
+get_area_conf = b'get_area_conf'
+set_area_conf = b'set_area_conf'
+get_adc_data = b'get_adc_data'
+get_act_data = b'get_act_data'

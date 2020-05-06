@@ -3,10 +3,12 @@ from struct import unpack
 from machine import Pin, SPI
 from definitions import *
 
-generalConf = {}
-areaConf = {}
+#generalConf = {}
+#areaConf = {}
 
 stm32_spi_reset_pin = Pin(5, Pin.OUT) # Pin 5 or D1 on node mcu
+CSN = Pin(15, Pin.OUT)
+CSN.on()
 
 def reset_stm32_spi(pin):
     stm32_spi_reset_pin.off()
@@ -16,13 +18,14 @@ def reset_stm32_spi(pin):
     stm32_spi_reset_pin.off()
     time.sleep_ms(1000)
 
-def spiStm32(spi, command, sleeptime):
+def spiStm32(spi, command, sleeptime, dict):
 
     byteArr = bytearray()
     byteArr_txt = ''
-
+    CSN.off()
     spi.write_readinto(command, status)
-    time.sleep_ms(sleeptime)  # sleep 10 msec
+    CSN.on()
+    time.sleep_ms(100)  # sleep 100 msec
     command_text = str(hex(command[0]))
     status_text = str(hex(status[0]))
     print("Master: " + command_text)
@@ -33,13 +36,15 @@ def spiStm32(spi, command, sleeptime):
             print("Get conf")
             byteArr, byteArr_txt = spiGetBytes(spi, confSize, sleeptime)
             # add items to general conf dictionary
-            unpack_general_conf(byteArr)
-            print(generalConf)
+            unpack_general_conf(byteArr, dict)
+            print(byteArr_txt)
 
         elif command == c_getArea or command == c_getDataAdc or command == c_getDataAct:
             if status == ackSlave:
                 print("Get area")
+                CSN.off()
                 spi.write_readinto(ackMaster, nElementsByte) #get number of elements
+                CSN.on()
                 time.sleep_ms(sleeptime)  # sleep  msec
                 print("".join("0x%02x " % i for i in nElementsByte))
                 x = unpack('<HH', nElementsByte)
@@ -49,9 +54,9 @@ def spiStm32(spi, command, sleeptime):
                         print("area has " + str(nElements) + " elements")
                         for j in range(nElements):
                             byteArr, byteArr_txt = spiGetBytes(spi, areaSize, sleeptime)
-                            unpack_area_conf(byteArr, j)
+                            unpack_area_conf(byteArr, j, dict)
                             #time.sleep_ms(500)  # sleep msec
-                        print(areaConf)
+                        #print(areaConf)
                     elif (command == c_getDataAdc):
                          print("adc data has " + str(nElements) + " elements")
                          for j in range(nElements):
@@ -76,7 +81,7 @@ def spiStm32(spi, command, sleeptime):
         config = bytearray(b'\x00')
         byteArr_txt = 'fail'
         #reconfigure this spi
-        spi = SPI(1, baudrate=40000000, polarity=0, phase=0)
+        #spi = SPI(1, baudrate=40000000, polarity=0, phase=0)
         time.sleep_ms(1000)
         #reconfigure stm32 spi
         reset_stm32_spi(stm32_spi_reset_pin)
@@ -88,7 +93,9 @@ def spiGetBytes(spi, nBytes, delay):
     dummySend = bytearray(b'\x21'*nBytes)  # dummy bytes
     #config = bytearray()
     # expecting nBytes bytes of data
+    CSN.off()
     spi.write_readinto(dummySend, recv)
+    CSN.on()
     time.sleep_ms(delay)  # sleep msec
     bytes_text = "".join("0x%02x " % i for i in recv)
     #print("".join("0x%02x " % i for i in nElements))
@@ -98,7 +105,7 @@ def spiGetBytes(spi, nBytes, delay):
     #print("Slave: " + bytes_text)
     return recv, bytes_text
 
-def unpack_general_conf(byteArr):
+def unpack_general_conf(byteArr, generalConf):
     x = unpack('<HH', byteArr[0:4])
     bytes = x[0] | x[1] << 16
     generalConf['adc_interval'] = bytes
@@ -115,7 +122,7 @@ def unpack_general_conf(byteArr):
     generalConf['num_sovs'] = int(byteArr[17])
     #last 2 bytes are not relevant, exist because of padding in stm32 data structure
 
-def unpack_area_conf(byteArr, idx):
+def unpack_area_conf(byteArr, idx, areaConf):
     areaConf['area'+str(idx)] = {}
     areaConf['area'+str(idx)]['associated_sensors'] = [ 0 for i in range(15)]
     for i in range(15):
