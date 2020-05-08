@@ -4,6 +4,7 @@ except:
     import socket
 
 import gc
+
 gc.collect()
 
 from machine import Pin, SPI
@@ -15,10 +16,9 @@ import spistm
 from definitions import *
 import json
 
-
 # configure spi
-#spi = SPI(-1, baudrate=200000, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(0), mosi=Pin(2), miso=Pin(4))
-#spi.init(baudrate=200000)  # set the baudrate
+# spi = SPI(-1, baudrate=200000, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(0), mosi=Pin(2), miso=Pin(4))
+# spi.init(baudrate=200000)  # set the baudrate
 
 # configure HW spi
 spi = SPI(1, baudrate=40000000, polarity=0, phase=0)
@@ -30,54 +30,47 @@ s.listen(5)
 sleeptime = 1
 i = 0
 
-
-
 while True:
     conn, addr = s.accept()
     request = conn.recv(1024)
     req = str(request)
     print(req)
-    #data_loaded = json.loads(request)
-    #print("Got command: " + request)
-    #if request is not '':
+    # data_loaded = json.loads(request)
+    # print("Got command: " + request)
+    # if request is not '':
     config = bytearray()
     config_txt = ''
-    if request == get_general_conf:
-        dict = {}
-        config, config_txt = spistm.spiStm32(spi, c_getConf, sleeptime, dict)
-        print(dict)
-    elif request == get_area_conf:
-        dict = {}
-        config, config_txt = spistm.spiStm32(spi, c_getArea, sleeptime, dict)
-        print(dict)
-    #try:
-        data_string = json.dumps(dict)  # data serialized
-        #print("data_string")
-        #print(data_string)
-        size = len(data_string)
-        print("size " + str(size))
-        parts = len(data_string)/536
-        print("parts " + str(parts))
-        if parts > 1:
-            for i in range(int(parts)): #send parts of size 536
-                bytes_sent = conn.send(data_string[i*536:(i+1)*536])
-                print(str(i) + "\n" + data_string[i*536:(i+1)*536])
-                size -= 536
-            if(size > 0): #send the rest
-                print("size " + str(size) + "idx: " + str(int(parts)*536) + "length: " + str(len(data_string)))
-                bytes_sent = conn.send(b'The end')#data_string[int(parts)*536:])
-                #print("\nsize>0" + data_string[int(parts)*536:])
-            print("sent " + str(bytes_sent) + " bytes")
-        elif size <= 536: #send everything at once
-            bytes_sent = conn.send(data_string)
-            print("\nsize<536\n" + data_string)
-        else:
-            print("something is wrong!")
-            #print("sent " + str(bytes_sent) + " bytes")
-        conn.close()
 
-    #except:
-        print("Some problem occurred when trying to send response")
-        #print("sent " + str(bytes_sent) + " bytes")
+    dict_data = {}
+    if request == b'set_general_config' or request == b'set_area_conf':
+        #try:
+        bytes = b''
+        data = bytes
+        while True:
+            data = conn.recv(536)
+            if len(data) <= 0:
+                break
+            bytes += data
+        data_loaded = json.loads(bytes.decode('utf-8'))  # data loaded
+        print(data_loaded)
+        #except:
+        #    print("Some problem occurred when trying to receive data")
 
+    else:
+        config, config_txt = spistm.spiStm32(spi, defaultCommands[request], sleeptime, dict_data)
+        try:
+            dataToSend = json.dumps(dict_data)  # data serialized
+            nBytesToSend = len(dataToSend)
+            nParts = nBytesToSend / 536
+            if nParts > 1:
+                for i in range(int(nParts)):  # segment max size is 536
+                    conn.send(dataToSend[i * 536:(i + 1) * 536].encode('utf-8'))
+                    nBytesToSend -= 536
+                if nBytesToSend > 0:  # send the rest
+                    conn.sendall(dataToSend[int(nParts) * 536:].encode('utf-8'))
+            elif nBytesToSend <= 536:  # send everything at once
+                conn.sendall(dataToSend.encode('utf-8'))
+        except:
+            print("Some problem occurred when trying to send data")
 
+    conn.close()

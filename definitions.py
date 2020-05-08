@@ -37,3 +37,12 @@ get_area_conf = b'get_area_conf'
 set_area_conf = b'set_area_conf'
 get_adc_data = b'get_adc_data'
 get_act_data = b'get_act_data'
+
+defaultCommands = {
+    b'get_general_config': bytearray(b'\xAA'),
+    b'get_area_conf': bytearray(b'\xBA'),
+    b'get_adc_data': bytearray(b'\xCA'),
+    b'get_act_data': bytearray(b'\xDA'),
+    b'set_general_config': bytearray(b'\xAB'),
+    b'set_area_conf': bytearray(b'\xBB')
+}
