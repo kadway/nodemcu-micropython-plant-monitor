@@ -39,7 +39,7 @@ while True:
 
     #file name for json data dump or load
     filename = str(options[int(user_input)])
-    filename = filename[2:-1] + ".json"
+    filename = "data/" + filename[2:-1] + ".json"
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
