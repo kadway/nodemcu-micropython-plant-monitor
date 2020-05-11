@@ -1,12 +1,12 @@
 {
     "num_sensors": 5,
     "init_code": 43981,
-    "page_offset_adc": 216,
+    "page_offset_adc": 36,
     "page_offset_act": 24,
-    "page_adc": 261,
+    "page_adc": 257,
     "num_pumps": 2,
     "num_sovs": 5,
-    "page_act": 7871,
+    "page_act": 7739,
     "num_areas": 5,
     "adc_interval": 3600000
 }

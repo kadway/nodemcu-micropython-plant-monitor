@@ -6,19 +6,11 @@ import json
 #command definitions
 options = (
     b'get_general_config',
-    b'get_area_conf',
+    b'get_area_config',
     b'get_adc_data',
     b'get_act_data',
     b'set_general_config',
-    b'set_area_conf')
-#defaultCommands = {
-#    b'get_general_config': bytearray(b'\xAA'),
-#    b'get_area_conf': bytearray(b'\xBA'),
-#    b'get_adc_data': bytearray(b'\xCA'),
-#    b'get_act_data': bytearray(b'\xDA'),
-#    b'set_general_config': bytearray(b'\xAB'),
-#    b'set_area_conf': bytearray(b'\xBB')
-#}
+    b'set_area_config')
 
 HOST = '192.168.1.12'  # The server's hostname or IP address
 PORT = 80       # The port used by the server
