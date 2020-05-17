@@ -2,6 +2,7 @@
 
 import socket
 import json
+import os
 
 #command definitions
 options = (
@@ -33,6 +34,7 @@ while True:
     filename = str(options[int(user_input)])
     filename = "data/" + filename[2:-1] + ".json"
 
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
         s.sendall(options[int(user_input)])
@@ -40,17 +42,18 @@ while True:
         if int(user_input) < 4:
             bytes = b''
             data = bytes
+            if os.path.exists(filename):
+                os.remove(filename)
+
             try:
                 while True:
                     data = s.recv(536)
                     if len(data) <= 0:
                         break
                     bytes += data
-
+                    #print(bytes.decode('utf-8'))
                 data_loaded = json.loads(bytes.decode('utf-8'))  # data loaded
-                print(data_loaded)
-
-                with open(filename, 'w') as f:
+                with open(filename, 'a+') as f:
                     json.dump(data_loaded, f, indent=4)
 
             except socket.error:
@@ -71,15 +74,3 @@ while True:
                     s.send(dataToSend[int(nParts) * 536:])
             elif nBytesToSend <= 536:  # send everything at once
                 s.sendall(dataToSend.encode('utf-8'))
-            #except:
-            #    print("Some problem occurred when trying to send response")
-        #except:
-
-        #    print("except!")
-        #    print(data)
-        #    print("size is " + str(len(data)))
-        #    print(bytes)
-            #print(data_loaded)
-
-    #print("Got data:")
-    #print(data)
