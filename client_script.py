@@ -13,7 +13,7 @@ options = (
     b'set_general_config',
     b'set_area_config')
 
-HOST = '192.168.1.12'  # The server's hostname or IP address
+HOST = '192.168.1.81'  # The server's hostname or IP address
 PORT = 80       # The port used by the server
 while True:
 
@@ -51,17 +51,16 @@ while True:
                     if len(data) <= 0:
                         break
                     bytes += data
-                    #print(bytes.decode('utf-8'))
-                data_loaded = json.loads(bytes.decode('utf-8'))  # data loaded
-                with open(filename, 'a+') as f:
-                    json.dump(data_loaded, f, indent=4)
-
+                    #print("----- DATA IN -----\n " + bytes.decode('utf-8') + "\n-----         -----\n")
+                with open(filename, 'w') as f:
+                    json.dump(bytes.decode('utf-8'), f, indent=4)
+                print("\nCommand done!\n")
             except socket.error:
                 print("Error receiving data: %s" % socket.error)
         else:
             with open(filename, 'r') as f:
                 dict_data = json.load(f)
-        #    try:
+
             dataToSend = json.dumps(dict_data)  # data serialized
             print(dataToSend.encode('utf-8'))
             nBytesToSend = len(dataToSend)
