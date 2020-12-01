@@ -9,7 +9,7 @@ gc.collect()
 
 import spi_class
 import json
-
+import time
 # instantiate the spi_class
 spi_object = spi_class.Stm32Spi()
 
@@ -42,9 +42,12 @@ while True:
         #    print("Some problem occurred when trying to receive data")
 
     else:
-        #config, config_txt = spistm.spiStm32(spi, defaultCommands[request], sleeptime, dict_data)
-        spi_object.send_command(request)
-        #print("Total elements: " + str(spi_object.nElements))
+        #re-send command until a valid num of elements is received
+        while 0 == spi_object.nElements or spi_object.nElements > 500000:
+            spi_object.send_command(request)
+            time.sleep_ms(100)  # sleep 100 msec
+            print("Total elements: " + str(spi_object.nElements))
+
         while spi_object.nElements > 0:
             #print("Elements left: " + str(spi_object.nElements))
             spi_object.get_data(10)
@@ -68,5 +71,7 @@ while True:
                     #print("All data was sent: " + str(dataToSend))
             except:
                 print("Some problem occurred when trying to send data")
+                spi_object.reset()
+                break
 
     conn.close()

@@ -38,7 +38,7 @@ while True:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
         s.sendall(options[int(user_input)])
-
+        print("Send command: " + str(options[int(user_input)]))
         if int(user_input) < 4:
             bytes = b''
             data = bytes

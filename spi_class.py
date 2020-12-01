@@ -30,8 +30,8 @@ class Stm32Spi:
         self.nElementsByte = bytearray(b'\x00\x00\x00\x00')  # initialize to zero
         self.nElementsTuple = ()
 
-        # configure HW spi
-        self.spi = SPI(1, baudrate=40000000, polarity=0, phase=0)
+        # configure HW spi max baudrate=40000000
+        self.spi = SPI(1, baudrate=1000000, polarity=0, phase=0)
         self.reset = Pin(5, Pin.OUT)  # Pin 5 or D1 on node mcu
         self.reset.on()
         self.reset.off()
@@ -46,6 +46,9 @@ class Stm32Spi:
         self.byteArr = bytearray()
         self.byteArr_txt = ''  # for debugging
         self.idx = 0
+
+    def reset(self):
+        self.__init__()
 
     def send_command(self, command):
 
