@@ -4,18 +4,12 @@ from struct import unpack
 
 class Stm32Spi:
     def __init__(self):
-        # init dictionaries that hold the configuration and log data
-        #self.general_config = {}
-        #self.area_config = {}
-        #self.adc_data = {}
-        #self.act_data = {}
-
         # define the existing commands for the communication with STM32
         # b'command name': [command byte to send, size in bytes of data structure in STM32, dictionary with data received/to send]
         self.default_commands = {
             b'get_general_config': [bytearray(b'\xAA'), 20, []],
             b'get_area_config': [bytearray(b'\xBA'), 48, []],
-            b'get_adc_data': [bytearray(b'\xCA'), 36, []],
+            b'get_adc_data': [bytearray(b'\xCA'), 38, []],
             b'get_act_data': [bytearray(b'\xDA'), 12, []],
             b'set_general_config': [bytearray(b'\xAB'), 20, []],
             b'set_area_config': [bytearray(b'\xBB'), 48, []]
@@ -48,7 +42,9 @@ class Stm32Spi:
         self.idx = 0
 
     def reset(self):
-        self.__init__()
+        #self.__init__()
+        self.nElements = 0
+        self.nElementsLeft = 0
 
     def send_command(self, command):
 
@@ -56,8 +52,7 @@ class Stm32Spi:
         #send the command
         self.CSN.off()
         self.spi.write_readinto(self.default_commands[command][0], self.status)
-        self.CSN.on()
-        time.sleep_ms(100)  # sleep 100 msec
+        time.sleep_ms(5)
 
         #for debug
         #print("Master: " + str(hex(command[0][0])))
@@ -69,18 +64,16 @@ class Stm32Spi:
                 self.nElements = 1
 
             elif self.c_recv == b'get_area_config' or self.c_recv == b'get_adc_data' or self.c_recv == b'get_act_data':
-                self.CSN.off()
                 self.spi.write_readinto(self.ackMaster, self.nElementsByte)  # get number of elements
-                self.CSN.on()
-                time.sleep_ms(10)  # sleep  msec
+                time.sleep_ms(5)
                 self.nElementsTuple = unpack('<HH', self.nElementsByte)
                 self.nElements = self.nElementsTuple[0] | self.nElementsTuple[1] << 16
 
                 # debug
                 print("".join("0x%02x " % i for i in self.nElementsByte))
         else:
-            print("Slave did not ack. STM32 will be reset....")
-            # restart stm32
+            print("Slave did not ack. STM32 spi will be reset....")
+            # restart stm32 spi
             self.reset.on()
             self.reset.off()
             time.sleep_ms(2000)
@@ -90,7 +83,7 @@ class Stm32Spi:
         # empty the list before adding more data to avoid memory problems
         self.default_commands[self.c_recv][2] = []
         self.idx = 0
-
+        self.CSN.off()
         if self.nElements > 0:  # data size is not zero -> continue
             for i in range(min(self.nElements, max_elements)):
                 self.get_spi_bytes()
@@ -113,21 +106,22 @@ class Stm32Spi:
                     print("Get actuation data")
 
                 self.nElements -= 1
-
         else:
             print("Error: Num of elements is {} !".format(self.nElements))
 
+        self.CSN.on()
     def get_spi_bytes(self):
 
         self.byteArr = bytearray(b'\x00' * self.default_commands[self.c_recv][1])  # initialize to zero
         self.dummyByteArr = bytearray(b'\x21' * self.default_commands[self.c_recv][1])  # dummy bytes
 
-        self.CSN.off()
+        #self.CSN.off()
         self.spi.write_readinto(self.dummyByteArr, self.byteArr)
-        self.CSN.on()
+        #self.CSN.on()
 
-        time.sleep_ms(1)  # sleep msec
-        self.byteArr_txt = "".join("0x%02x " % i for i in self.byteArr)
+        time.sleep_ms(10)  # sleep msec
+        #self.byteArr_txt = "".join("0x%02x " % i for i in self.byteArr)
+        #print(self.byteArr_txt)
 
     def unpack_general_conf(self):
         self.time_temp = unpack('<HH', self.byteArr[0:4])
@@ -173,12 +167,18 @@ class Stm32Spi:
 
     def unpack_adc_data(self, idx):
         self.default_commands[b'get_adc_data'][2].append({})
-        self.time_temp = unpack('<HH', self.byteArr[0:4])
-        self.default_commands[b'get_adc_data'][2][idx]['time'] = self.time_temp[0] | self.time_temp[1] << 16
-        self.default_commands[b'get_adc_data'][2][idx]['temperature'] = unpack('<H', self.byteArr[4:6])[0]
+        self.default_commands[b'get_adc_data'][2][idx]['hours'] = int(self.byteArr[0])
+        self.default_commands[b'get_adc_data'][2][idx]['minutes'] = int(self.byteArr[1])
+        self.default_commands[b'get_adc_data'][2][idx]['seconds'] = int(self.byteArr[2])
+        self.default_commands[b'get_adc_data'][2][idx]['timeformat'] = int(self.byteArr[3])
+        self.default_commands[b'get_adc_data'][2][idx]['month'] = int(self.byteArr[4])
+        self.default_commands[b'get_adc_data'][2][idx]['day'] = int(self.byteArr[5])
+        self.default_commands[b'get_adc_data'][2][idx]['year'] = int(self.byteArr[6])
+        #byte 7 is not relevant, exists due to padding of data structure in stm32
+        self.default_commands[b'get_adc_data'][2][idx]['temperature'] = int(self.byteArr[7])
         self.default_commands[b'get_adc_data'][2][idx]['measurements'] = [0 for i in range(15)] # 0 to max num of sensors
         for i in range(15):
-            self.default_commands[b'get_adc_data'][2][idx]['measurements'][i] = unpack('<H', self.byteArr[6+i*2:8+i*2])[0]
+            self.default_commands[b'get_adc_data'][2][idx]['measurements'][i] = unpack('<H', self.byteArr[8+i*2:10+i*2])[0]
 
     def gen_idx(self):
         self.idx += 1

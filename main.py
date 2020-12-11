@@ -10,6 +10,7 @@ gc.collect()
 import spi_class
 import json
 import time
+import micropython
 # instantiate the spi_class
 spi_object = spi_class.Stm32Spi()
 
@@ -19,6 +20,7 @@ s.bind(('', 80))
 s.listen(5)
 
 while True:
+    micropython.mem_info()
     conn, addr = s.accept()
     request = conn.recv(1024)
     req = str(request)
@@ -49,8 +51,8 @@ while True:
             print("Total elements: " + str(spi_object.nElements))
 
         while spi_object.nElements > 0:
-            #print("Elements left: " + str(spi_object.nElements))
-            spi_object.get_data(10)
+            print("Elements left: " + str(spi_object.nElements))
+            spi_object.get_data(5)
             try:
                 dataToSend = json.dumps(spi_object.default_commands[request][2])  # data serialized
                 nBytesToSend = len(dataToSend)
