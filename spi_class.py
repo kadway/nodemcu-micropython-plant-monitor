@@ -99,11 +99,14 @@ class Stm32Spi:
 
                 elif self.c_recv == b'get_adc_data':
                     #print("Get ADC data")
-                    self.unpack_adc_data(self.gen_idx()-1)
+                    self.unpack_time_data(self.gen_idx()-1)
+                    self.unpack_adc_data(self.idx-1)
                     #print(self.default_commands[b'get_adc_data'][2])
 
                 elif self.c_recv == b'get_act_data':
-                    print("Get actuation data")
+                    self.unpack_time_data(self.gen_idx()-1)
+                    self.unpack_act_data(self.idx-1)
+
 
                 self.nElements -= 1
         else:
@@ -165,20 +168,26 @@ class Stm32Spi:
 
         self.default_commands[b'get_area_config'][2][idx]['area_ID'] = int(self.byteArr[44])
 
+    def unpack_time_data(self, idx):
+        self.default_commands[self.c_recv][2].append({})
+        self.default_commands[self.c_recv][2][idx]['hours'] = int(self.byteArr[0])
+        self.default_commands[self.c_recv][2][idx]['minutes'] = int(self.byteArr[1])
+        self.default_commands[self.c_recv][2][idx]['seconds'] = int(self.byteArr[2])
+        self.default_commands[self.c_recv][2][idx]['timeformat'] = int(self.byteArr[3])
+        self.default_commands[self.c_recv][2][idx]['month'] = int(self.byteArr[4])
+        self.default_commands[self.c_recv][2][idx]['day'] = int(self.byteArr[5])
+        self.default_commands[self.c_recv][2][idx]['year'] = int(self.byteArr[6])
+
     def unpack_adc_data(self, idx):
-        self.default_commands[b'get_adc_data'][2].append({})
-        self.default_commands[b'get_adc_data'][2][idx]['hours'] = int(self.byteArr[0])
-        self.default_commands[b'get_adc_data'][2][idx]['minutes'] = int(self.byteArr[1])
-        self.default_commands[b'get_adc_data'][2][idx]['seconds'] = int(self.byteArr[2])
-        self.default_commands[b'get_adc_data'][2][idx]['timeformat'] = int(self.byteArr[3])
-        self.default_commands[b'get_adc_data'][2][idx]['month'] = int(self.byteArr[4])
-        self.default_commands[b'get_adc_data'][2][idx]['day'] = int(self.byteArr[5])
-        self.default_commands[b'get_adc_data'][2][idx]['year'] = int(self.byteArr[6])
-        #byte 7 is not relevant, exists due to padding of data structure in stm32
-        self.default_commands[b'get_adc_data'][2][idx]['temperature'] = int(self.byteArr[7])
-        self.default_commands[b'get_adc_data'][2][idx]['measurements'] = [0 for i in range(15)] # 0 to max num of sensors
+        self.default_commands[self.c_recv][2][idx]['temperature'] = int(self.byteArr[7])
+        self.default_commands[self.c_recv][2][idx]['measurements'] = [0 for i in range(15)] # 0 to max num of sensors
         for i in range(15):
-            self.default_commands[b'get_adc_data'][2][idx]['measurements'][i] = unpack('<H', self.byteArr[8+i*2:10+i*2])[0]
+            self.default_commands[self.c_recv][2][idx]['measurements'][i] = unpack('<H', self.byteArr[8+i*2:10+i*2])[0]
+
+    def unpack_act_data(self, idx):
+        self.default_commands[self.c_recv][2][idx]['area_id'] = int(self.byteArr[7])
+        self.time_temp = unpack('<HH', self.byteArr[8:12])
+        self.default_commands[self.c_recv][2][idx]['duration'] = self.time_temp[0] | self.time_temp[1] << 16
 
     def gen_idx(self):
         self.idx += 1
