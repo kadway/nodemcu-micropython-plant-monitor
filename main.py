@@ -7,13 +7,12 @@ import gc
 
 gc.collect()
 
-import spi_class
+import spi_class_esp
 import json
 import time
-import micropython
 
 # instantiate the spi_class
-spi_object = spi_class.Stm32Spi()
+spi_object = spi_class_esp.Stm32Spi()
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -21,7 +20,6 @@ s.bind(('', 80))
 s.listen(5)
 
 while True:
-    #micropython.mem_info()
     conn, addr = s.accept()
     request = conn.recv(1024)
     req = str(request)
@@ -46,16 +44,19 @@ while True:
             spi_object.send_command(request)
             time.sleep_ms(100)  # sleep 100 msec
 
+        sent=0
         while spi_object.nElements > 0:
-            print("Elements left: " + str(spi_object.nElements))
             spi_object.get_data()
             try:
-                dataToSend = json.dumps(spi_object.default_commands[request][2])  # data serialized
-                conn.sendall(dataToSend.encode('utf-8'))
+                conn.sendall(spi_object.byteArr)
+                sent += len(spi_object.byteArr)
+                #print("".join("0x%02x " % i for i in spi_object.byteArr))
 
             except:
                 print("Some problem occurred when trying to send data")
                 spi_object.reset()
                 break
+
+        print("Sent " + str(sent) + " Bytes " + "(" + str(sent/1000) + " KByte)")
 
     conn.close()

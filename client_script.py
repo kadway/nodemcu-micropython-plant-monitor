@@ -3,6 +3,7 @@
 import socket
 import json
 import os
+import spi_class_cli
 
 #command definitions
 options = (
@@ -17,6 +18,8 @@ HOST = '192.168.1.81'  # The server's hostname or IP address
 PORT = 80       # The port used by the server
 
 mylist = []
+
+spi_obj = spi_class_cli.Stm32SpiCli()
 
 while True:
 
@@ -33,9 +36,7 @@ while True:
         print(user_input + " is invalid")
         user_input = input()
 
-    #file name for json data dump or load
-    filename = str(options[int(user_input)])
-    filename = "data/" + filename[2:-1] + ".json"
+
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
@@ -44,8 +45,6 @@ while True:
         if int(user_input) < 4:
             bytes = b''
             data = bytes
-            if os.path.exists(filename):
-                os.remove(filename)
 
             try:
                 while True:
@@ -57,11 +56,14 @@ while True:
                     #print(bytes)
                     #print("----- DATA IN -----\n " + data.decode('utf-8') + "\n-----         -----\n")
 
-                mystring=bytes.decode('utf-8').replace("][", ",")
-                mylist=json.loads(mystring)
+                #spi_obj.byteArr = bytes
+                #self.c_recv = options[int(user_input)]
+                spi_obj.save_data(bytes, options[int(user_input)])
 
-                with open(filename, 'w') as f:
-                    json.dump(mylist, f)
+                #mystring=bytes.decode('utf-8').replace("][", ",")
+                #mylist=json.loads(mystring)
+
+
                 print("\nCommand done!\n")
             except socket.error:
                 print("Error receiving data: %s" % socket.error)
