@@ -39,7 +39,6 @@ class Stm32Spi:
         # variables for spi get data method
         self.byteArr = bytearray()
         self.byteArr_txt = ''  # for debugging
-        self.idx = 0
 
     def reset(self):
         #self.__init__()
@@ -47,9 +46,7 @@ class Stm32Spi:
         self.nElementsLeft = 0
 
     def send_command(self, command):
-
         self.c_recv = command
-        #send the command
         self.CSN.off()
         self.spi.write_readinto(self.default_commands[command][0], self.status)
         time.sleep_ms(5)
@@ -59,7 +56,6 @@ class Stm32Spi:
         #print("Slave: " + str(hex(self.status[0])))
 
         if self.status == self.ackSlave:
-
             if self.c_recv == b'get_general_config':
                 self.nElements = 1
 
@@ -70,7 +66,7 @@ class Stm32Spi:
                 self.nElements = self.nElementsTuple[0] | self.nElementsTuple[1] << 16
 
                 # debug
-                print("".join("0x%02x " % i for i in self.nElementsByte))
+                #print("".join("0x%02x " % i for i in self.nElementsByte))
         else:
             print("Slave did not ack. STM32 spi will be reset....")
             # restart stm32 spi
@@ -78,53 +74,47 @@ class Stm32Spi:
             self.reset.off()
             time.sleep_ms(2000)
 
-    def get_data(self, max_elements=10):
+    #def send_data(self, data):
+        #if self.c_recv == b'set_general_config':
+            #self.pack_general_conf(data)
+            #self.send_spi_bytes()
 
+       #elif self.c_recv == b'set_area_config':
+       #    pack_area_conf(data)
+
+
+    def get_data(self):
         # empty the list before adding more data to avoid memory problems
         self.default_commands[self.c_recv][2] = []
-        self.idx = 0
         self.CSN.off()
         if self.nElements > 0:  # data size is not zero -> continue
-            for i in range(min(self.nElements, max_elements)):
-                self.get_spi_bytes()
-
-                if self.c_recv == b'get_general_config':
-                    #print("Get general configuration")
-                    self.unpack_general_conf()
-
-                elif self.c_recv == b'get_area_config':
-                    #print("Get area configuration")
-                    self.unpack_area_conf(self.gen_idx()-1)
-                    #print(self.default_commands[b'get_area_config'][2])
-
-                elif self.c_recv == b'get_adc_data':
-                    #print("Get ADC data")
-                    self.unpack_time_data(self.gen_idx()-1)
-                    self.unpack_adc_data(self.idx-1)
-                    #print(self.default_commands[b'get_adc_data'][2])
-
-                elif self.c_recv == b'get_act_data':
-                    self.unpack_time_data(self.gen_idx()-1)
-                    self.unpack_act_data(self.idx-1)
-
-
-                self.nElements -= 1
+            self.get_spi_bytes()
+            if self.c_recv == b'get_general_config':
+                self.unpack_general_conf()
+            elif self.c_recv == b'get_area_config':
+                self.unpack_area_conf(0)
+            elif self.c_recv == b'get_adc_data':
+                self.unpack_time_data(0)
+                self.unpack_adc_data(0)
+            elif self.c_recv == b'get_act_data':
+                self.unpack_time_data(0)
+                self.unpack_act_data(0)
+            self.nElements -= 1
         else:
             print("Error: Num of elements is {} !".format(self.nElements))
-
         self.CSN.on()
-    def get_spi_bytes(self):
 
+    def send_spi_bytes(self):
+        self.dummyByteArr = bytearray(b'\x21' * self.default_commands[self.c_recv][1])  # dummy bytes
+        self.spi.write_readinto(self.byteArr, self.dummyByteArr)
+        time.sleep_ms(1)  # sleep msec
+
+
+    def get_spi_bytes(self):
         self.byteArr = bytearray(b'\x00' * self.default_commands[self.c_recv][1])  # initialize to zero
         self.dummyByteArr = bytearray(b'\x21' * self.default_commands[self.c_recv][1])  # dummy bytes
-
-        #self.CSN.off()
         self.spi.write_readinto(self.dummyByteArr, self.byteArr)
-        #self.CSN.on()
-
-        time.sleep_ms(10)  # sleep msec
-        #self.byteArr_txt = "".join("0x%02x " % i for i in self.byteArr)
-        #print(self.byteArr_txt)
+        time.sleep_ms(1)  # sleep msec
 
     def unpack_general_conf(self):
         self.time_temp = unpack('<HH', self.byteArr[0:4])
@@ -141,31 +131,41 @@ class Stm32Spi:
         self.default_commands[b'get_general_config'][2][0]['num_sovs'] = int(self.byteArr[17])
         # last 2 bytes are not relevant, exist because of padding in stm32 data structure
 
+    #def pack_general_conf(self, data):
+        #self.byteArr = data[0]['adc_interval'].to_bytes(4,'little')
+        #self.byteArr += data[0]['init_code'].to_bytes(2, 'little')
+        #self.byteArr += data[0]['page_adc'].to_bytes(2, 'little')
+        #self.byteArr += data[0]['page_act'].to_bytes(2, 'little')
+        #self.byteArr += data[0]['page_offset_adc'].to_bytes(2, 'little')
+        #self.byteArr += data[0]['page_offset_act'].to_bytes(2, 'little')
+        #self.byteArr += data[0]['num_areas'].to_bytes(2, 'little')
+        #self.byteArr = self.byteArr[0:len(self.byteArr) - 1]
+        #self.byteArr += data[0]['num_sensors'].to_bytes(2, 'little')
+        #self.byteArr = self.byteArr[0:len(self.byteArr) - 1]
+        #self.byteArr += data[0]['num_pumps'].to_bytes(2, 'little')
+        #self.byteArr = self.byteArr[0:len(self.byteArr) - 1]
+        #self.byteArr += data[0]['num_sovs'].to_bytes(2, 'little')
+        #self.byteArr += b'\x00'
+        #self.byteArr_txt = "".join("0x%02x " % i for i in self.byteArr)
+        #print(self.byteArr_txt)
+
     def unpack_area_conf(self, idx):
         self.default_commands[b'get_area_config'][2].append({})
         self.default_commands[b'get_area_config'][2][idx]['associated_sensors'] = [0 for i in range(15)]
         for i in range(15):
             self.default_commands[b'get_area_config'][2][idx]['associated_sensors'][i] = int(self.byteArr[i])
-
         self.default_commands[b'get_area_config'][2][idx]['associated_solenoids'] = [0 for i in range(10)]
         for i in range(10):
             self.default_commands[b'get_area_config'][2][idx]['associated_solenoids'][i] = int(self.byteArr[15 + i])
-
         self.time_temp = unpack('<HH', self.byteArr[28:32])
         self.default_commands[b'get_area_config'][2][idx]['watering_duration'] = self.time_temp[0] | self.time_temp[1] << 16
-
         self.time_temp = unpack('<HH', self.byteArr[32:36])
         self.default_commands[b'get_area_config'][2][idx]['watering_interval'] = self.time_temp[0] | self.time_temp[1] << 16
-
         self.time_temp = unpack('<HH', self.byteArr[36:40])
         self.default_commands[b'get_area_config'][2][idx]['last_watering_time'] = self.time_temp[0] | self.time_temp[1] << 16
-
         self.default_commands[b'get_area_config'][2][idx]['threshold'] = unpack('<H', self.byteArr[40:42])[0]
-
         self.default_commands[b'get_area_config'][2][idx]['associated_pump'] = int(self.byteArr[42])
-
         self.default_commands[b'get_area_config'][2][idx]['open_loop'] = "yes" if int(self.byteArr[43]) == 1 else "no"
-
         self.default_commands[b'get_area_config'][2][idx]['area_ID'] = int(self.byteArr[44])
 
     def unpack_time_data(self, idx):
@@ -188,7 +188,3 @@ class Stm32Spi:
         self.default_commands[self.c_recv][2][idx]['area_id'] = int(self.byteArr[7])
         self.time_temp = unpack('<HH', self.byteArr[8:12])
         self.default_commands[self.c_recv][2][idx]['duration'] = self.time_temp[0] | self.time_temp[1] << 16
-
-    def gen_idx(self):
-        self.idx += 1
-        return self.idx

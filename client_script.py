@@ -15,6 +15,9 @@ options = (
 
 HOST = '192.168.1.81'  # The server's hostname or IP address
 PORT = 80       # The port used by the server
+
+mylist = []
+
 while True:
 
     print("Options:\n"
@@ -34,7 +37,6 @@ while True:
     filename = str(options[int(user_input)])
     filename = "data/" + filename[2:-1] + ".json"
 
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
         s.sendall(options[int(user_input)])
@@ -47,29 +49,28 @@ while True:
 
             try:
                 while True:
-                    data = s.recv(536)
+                    data = s.recv(1024)
                     if len(data) <= 0:
                         break
+                    #print("bytes:")
                     bytes += data
-                    #print("----- DATA IN -----\n " + bytes.decode('utf-8') + "\n-----         -----\n")
+                    #print(bytes)
+                    #print("----- DATA IN -----\n " + data.decode('utf-8') + "\n-----         -----\n")
+
+                mystring=bytes.decode('utf-8').replace("][", ",")
+                mylist=json.loads(mystring)
+
                 with open(filename, 'w') as f:
-                    json.dump(bytes.decode('utf-8'), f, indent=4)
+                    json.dump(mylist, f)
                 print("\nCommand done!\n")
             except socket.error:
                 print("Error receiving data: %s" % socket.error)
         else:
             with open(filename, 'r') as f:
-                dict_data = json.load(f)
+                saved_data = json.load(f)
 
-            dataToSend = json.dumps(dict_data)  # data serialized
+            dataToSend = json.dumps(saved_data)  # data serialized
             print(dataToSend.encode('utf-8'))
-            nBytesToSend = len(dataToSend)
-            nParts = nBytesToSend / 536
-            if nParts > 1:
-                for i in range(int(nParts)):  # segment max size is 536
-                    s.send(dataToSend[i * 536:(i + 1) * 536])
-                    nBytesToSend -= 536
-                if nBytesToSend > 0:  # send the rest
-                    s.send(dataToSend[int(nParts) * 536:])
-            elif nBytesToSend <= 536:  # send everything at once
-                s.sendall(dataToSend.encode('utf-8'))
+            s.sendall(dataToSend.encode('utf-8'))
+            #s.sendall(bytearray(b'\x39'*20))
+
