@@ -24,8 +24,7 @@ while True:
     request = conn.recv(1024)
     req = str(request)
 
-    if request == b'set_general_config' or request == b'set_area_config':
-        #try:
+    if request == b'set_general_config' or request == b'set_area_config' or request == b'clear_log':
         bytes = b''
         data = bytes
         while True:
@@ -33,10 +32,21 @@ while True:
             if len(data) <= 0:
                 break
             bytes += data
-        print("".join("0x%02x " % i for i in bytes))
-        #data_loaded = json.loads(bytes.decode('utf-8'))  # data loaded
-        ##spi_object.send_command(request)
-        #spi_object.send_data(data_loaded)
+        #print("".join("0x%02x " % i for i in bytes))
+        spi_object.send_command(request)
+        if request != b'clear_log':
+            if spi_object.send_data(bytes, request) == 0:
+                print("Wrote to MCU: " + str(len(bytes)) + " Bytes " + "(" + str(len(bytes) / 1000) + " KByte)")
+            else:
+                print("Some error occurred while writing data to MCU...")
+        print("Command " + req + "sent to MCU!")
+
+    elif request == b'reset':
+        # force restart stm32
+        spi_object.reset.on()
+        time.sleep(1)
+        spi_object.reset.off()
+        print("Force STM32 reset")
 
     else:
         #re-send command until a valid num of elements is received

@@ -49,7 +49,34 @@ class Stm32SpiCli:
             json.dump(self.commands[command][1], f)
 
         #empty the list after saving data
-        self.commands[self.c_recv][1] = []
+        if command == b'get_adc_data' or command == b'get_act_data' or command == b'get_area_config':
+            self.commands[self.c_recv][1] = []
+
+    def load_data(self, command):
+        self.c_recv = command
+
+        filename = str(command)
+        filename = "data/" + filename[2:-1] + ".json"
+
+        if os.path.exists(filename):
+            with open(filename, 'r') as f:
+                self.commands[self.c_recv][1] = json.load(f)
+        else:
+            print("Err: Path " + filename + " does not exist. Duplicate get_*_data.json and rename to set_*_data.json first!")
+
+        if command == b'set_general_config':
+            self.pack_general_conf()
+            return self.byteArr
+
+        elif command == b'set_area_config':
+            if self.commands[b'get_general_config'][1]:
+                self.pack_area_conf()
+                print(str(self.commands[b'get_general_config'][1][0]['num_areas']) + " areas from file packed in bytearray")
+                return self.byteArr
+            else:
+                print("Err: Must get general configuration before trying to send area conf.")
+                return b'\x01'
+
 
     def unpack_general_conf(self):
         self.time_temp = unpack('<HH', self.byteArr[0:4])
@@ -67,23 +94,23 @@ class Stm32SpiCli:
         self.commands[b'get_general_config'][1][0]['num_sovs'] = int(self.byteArr[17])
         # last 2 bytes are not relevant, exist because of padding in stm32 data structure
 
-    def pack_general_conf(self, data):
-        self.byteArr = data[0]['adc_interval'].to_bytes(4,'little')
-        self.byteArr += data[0]['init_code'].to_bytes(2, 'little')
-        self.byteArr += data[0]['page_adc'].to_bytes(2, 'little')
-        self.byteArr += data[0]['page_act'].to_bytes(2, 'little')
-        self.byteArr += data[0]['page_offset_adc'].to_bytes(2, 'little')
-        self.byteArr += data[0]['page_offset_act'].to_bytes(2, 'little')
-        self.byteArr += data[0]['num_areas'].to_bytes(2, 'little')
-        self.byteArr = self.byteArr[0:len(self.byteArr) - 1]
-        self.byteArr += data[0]['num_sensors'].to_bytes(2, 'little')
-        self.byteArr = self.byteArr[0:len(self.byteArr) - 1]
-        self.byteArr += data[0]['num_pumps'].to_bytes(2, 'little')
-        self.byteArr = self.byteArr[0:len(self.byteArr) - 1]
-        self.byteArr += data[0]['num_sovs'].to_bytes(2, 'little')
+    def pack_general_conf(self):
+        self.byteArr = self.commands[b'set_general_config'][1][0]['adc_interval'].to_bytes(4,'little')
+        self.byteArr += self.commands[b'set_general_config'][1][0]['init_code'].to_bytes(2, 'little')
+        self.byteArr += self.commands[b'set_general_config'][1][0]['page_adc'].to_bytes(2, 'little')
+        self.byteArr += self.commands[b'set_general_config'][1][0]['page_act'].to_bytes(2, 'little')
+        self.byteArr += self.commands[b'set_general_config'][1][0]['page_offset_adc'].to_bytes(2, 'little')
+        self.byteArr += self.commands[b'set_general_config'][1][0]['page_offset_act'].to_bytes(2, 'little')
+        self.byteArr += self.commands[b'set_general_config'][1][0]['num_areas'].to_bytes(2, 'little')
+        self.byteArr = self.byteArr[:-1]
+        self.byteArr += self.commands[b'set_general_config'][1][0]['num_sensors'].to_bytes(2, 'little')
+        self.byteArr = self.byteArr[:-1]
+        self.byteArr += self.commands[b'set_general_config'][1][0]['num_pumps'].to_bytes(2, 'little')
+        self.byteArr = self.byteArr[:-1]
+        self.byteArr += self.commands[b'set_general_config'][1][0]['num_sovs'].to_bytes(2, 'little')
         self.byteArr += b'\x00'
-        self.byteArr_txt = "".join("0x%02x " % i for i in self.byteArr)
-        print(self.byteArr_txt)
+        #self.byteArr_txt = "".join("0x%02x " % i for i in self.byteArr)
+        #print(self.byteArr_txt)
 
     def unpack_area_conf(self, idx):
         self.commands[b'get_area_config'][1].append({})
@@ -103,6 +130,28 @@ class Stm32SpiCli:
         self.commands[b'get_area_config'][1][idx]['associated_pump'] = int(self.tempArr[42])
         self.commands[b'get_area_config'][1][idx]['open_loop'] = "yes" if int(self.tempArr[43]) == 1 else "no"
         self.commands[b'get_area_config'][1][idx]['area_ID'] = int(self.tempArr[44])
+
+    def pack_area_conf(self):
+        #clear byte array first
+        self.byteArr = bytearray()
+
+        for area_num in range(self.commands[b'get_general_config'][1][0]['num_areas']):
+            for i in range(15):
+                self.byteArr += self.commands[b'set_area_config'][1][area_num]['associated_sensors'][i].to_bytes(2, 'little')
+                self.byteArr = self.byteArr[:-1]
+            for i in range(10):
+                self.byteArr += self.commands[b'set_area_config'][1][area_num]['associated_solenoids'][i].to_bytes(2, 'little')
+                self.byteArr = self.byteArr[:-1]
+            self.byteArr += b'\x00\x00\x00'
+            self.byteArr += self.commands[b'set_area_config'][1][area_num]['watering_duration'].to_bytes(4, 'little')
+            self.byteArr += self.commands[b'set_area_config'][1][area_num]['watering_interval'].to_bytes(4, 'little')
+            self.byteArr += self.commands[b'set_area_config'][1][area_num]['last_watering_time'].to_bytes(4, 'little')
+            self.byteArr += self.commands[b'set_area_config'][1][area_num]['threshold'].to_bytes(2, 'little')
+            self.byteArr += self.commands[b'set_area_config'][1][area_num]['associated_pump'].to_bytes(2, 'little')
+            self.byteArr = self.byteArr[:-1]
+            self.byteArr += b'\x01' if (self.commands[b'set_area_config'][1][area_num]['open_loop'] == "yes") else b'\x00'
+            self.byteArr += self.commands[b'set_area_config'][1][area_num]['area_ID'].to_bytes(2, 'little')
+            self.byteArr += b'\x00\x00'
 
     def unpack_time_data(self, idx):
         self.commands[self.c_recv][1].append({})

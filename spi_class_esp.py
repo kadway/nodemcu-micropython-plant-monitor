@@ -12,14 +12,15 @@ class Stm32Spi:
             b'get_adc_data': [bytearray(b'\xCA'), 38],
             b'get_act_data': [bytearray(b'\xDA'), 12],
             b'set_general_config': [bytearray(b'\xAB'), 20],
-            b'set_area_config': [bytearray(b'\xBB'), 48]
+            b'set_area_config': [bytearray(b'\xBB'), 48],
+            b'clear_log': [bytearray(b'\xEA'), 0]
         }
 
         self.c_recv = None
-        self.status = bytearray(b'\x00')  # initialize to zero
-        self.dummyByteArr = bytearray(b'\x00')                  # initialize to zero
+        self.status = bytearray(b'\x00')
+        self.dummyByteArr = bytearray(b'\x00')
         self.nElements = 0
-        self.nElementsByte = bytearray(b'\x00\x00\x00\x00')  # initialize to zero
+        self.nElementsByte = bytearray(b'\x00\x00\x00\x00')
         self.nElementsTuple = ()
 
         # configure HW spi max baudrate=40000000
@@ -36,7 +37,12 @@ class Stm32Spi:
 
         # variables for spi get data method
         self.byteArr = bytearray()
+        self.tempArr = bytearray()
         self.byteArr_txt = ''  # for debugging
+
+        self.numBytes = 0
+        self.numParts = 0
+
 
     def reset(self):
         #self.__init__()
@@ -75,6 +81,31 @@ class Stm32Spi:
         else:
             print("Error: Num of elements is {} !".format(self.nElements))
         self.CSN.on()
+
+    def send_data(self, data, command):
+        self.c_recv = command
+        self.byteArr = data
+        if command == b'set_general_config':
+            if len(data) == self.default_commands[self.c_recv][1]:
+                if self.send_spi_bytes() == 1:
+                    return 1
+            else:
+                print("Invalid data size!")
+                return 1
+            return 0
+
+        elif command == b'set_area_config':
+            self.numBytes = self.default_commands[self.c_recv][1]
+            self.numParts = int(len(self.byteArr) / self.numBytes)
+            self.tempArr = self.byteArr
+
+            for i in range(self.numParts):
+                self.byteArr = self.tempArr[i * self.numBytes:i * self.numBytes + self.numBytes]
+                if self.send_spi_bytes() == 1:
+                    return 1
+            return 0
+        print("Unknown command while trying to send data to mcu...")
+        return 1
 
     def send_spi_bytes(self):
         self.dummyByteArr = bytearray(b'\x21' * self.default_commands[self.c_recv][1])  # dummy bytes
