@@ -71,6 +71,7 @@ class Stm32Spi:
             # restart stm32 spi
             self.reset.on()
             self.reset.off()
+            self.reset()
             time.sleep_ms(2000)
 
     def get_data(self):
