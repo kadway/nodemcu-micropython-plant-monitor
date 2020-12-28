@@ -13,7 +13,9 @@ options = (
     b'set_general_config',
     b'set_area_config',
     b'clear_log',
-    b'reset')
+    b'reset',
+    b'clear_conf'
+)
 
 HOST = '192.168.1.81'  # The server's hostname or IP address
 PORT = 80       # The port used by the server
@@ -31,9 +33,10 @@ while True:
           "5. set area configuration\n"
           "6. clear log\n"
           "7. reset STM\n"
+          "8. clear conf (default init)\n"
           "Type command number:")
     user_input = input()
-    while not (0 <= int(user_input) < 8):
+    while not (0 <= int(user_input) < 9):
         print(user_input + " is invalid")
         user_input = input()
 

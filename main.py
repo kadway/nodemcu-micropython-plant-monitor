@@ -26,7 +26,7 @@ while True:
     request = conn.recv(1024)
     req = str(request)
 
-    if request == b'set_general_config' or request == b'set_area_config' or request == b'clear_log':
+    if request == b'set_general_config' or request == b'set_area_config' or request == b'clear_log' or request == b'clear_conf':
         bytes = b''
         data = bytes
         while True:
@@ -36,7 +36,7 @@ while True:
             bytes += data
         #print("".join("0x%02x " % i for i in bytes))
         spi_object.send_command(request)
-        if request != b'clear_log':
+        if request != b'clear_log' and request != b'clear_conf':
             if spi_object.send_data(bytes, request) == 0:
                 print("Wrote to MCU: " + str(len(bytes)) + " Bytes " + "(" + str(len(bytes) / 1000) + " KByte)")
             else:

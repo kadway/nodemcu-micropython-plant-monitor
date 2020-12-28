@@ -13,7 +13,8 @@ class Stm32Spi:
             b'get_act_data': [bytearray(b'\xDA'), 12],
             b'set_general_config': [bytearray(b'\xAB'), 20],
             b'set_area_config': [bytearray(b'\xBB'), 48],
-            b'clear_log': [bytearray(b'\xEA'), 0]
+            b'clear_log': [bytearray(b'\xEA'), 0],
+            b'clear_conf': [bytearray(b'\xEB'), 0]
         }
 
         self.c_recv = None
