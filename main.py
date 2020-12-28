@@ -16,6 +16,8 @@ spi_object = spi_class_esp.Stm32Spi()
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+max_retry = 10
+
 s.bind(('', 80))
 s.listen(5)
 
@@ -24,7 +26,7 @@ while True:
     request = conn.recv(1024)
     req = str(request)
 
-    if request == b'set_general_config' or request == b'set_area_config' or request == b'clear_log':
+    if request == b'set_general_config' or request == b'set_area_config' or request == b'clear_log' or request == b'clear_conf':
         bytes = b''
         data = bytes
         while True:
@@ -34,7 +36,7 @@ while True:
             bytes += data
         #print("".join("0x%02x " % i for i in bytes))
         spi_object.send_command(request)
-        if request != b'clear_log':
+        if request != b'clear_log' and request != b'clear_conf':
             if spi_object.send_data(bytes, request) == 0:
                 print("Wrote to MCU: " + str(len(bytes)) + " Bytes " + "(" + str(len(bytes) / 1000) + " KByte)")
             else:
@@ -50,12 +52,13 @@ while True:
 
     else:
         #re-send command until a valid num of elements is received
-        while 0 == spi_object.nElements or spi_object.nElements > 500000:
+        while (0 == spi_object.nElements or spi_object.nElements > 90000000) and max_retry:
             spi_object.send_command(request)
             time.sleep_ms(100)  # sleep 100 msec
+            max_retry -= 1
 
         sent=0
-        while spi_object.nElements > 0:
+        while 0 < spi_object.nElements < 90000000:
             spi_object.get_data()
             try:
                 conn.sendall(spi_object.byteArr)
@@ -66,7 +69,8 @@ while True:
                 print("Some problem occurred when trying to send data")
                 spi_object.reset()
                 break
-
-        print("Sent " + str(sent) + " Bytes " + "(" + str(sent/1000) + " KByte)")
+        if max_retry > 0:
+            print("Sent " + str(sent) + " Bytes " + "(" + str(sent/1000) + " KByte)")
+        max_retry = 10
 
     conn.close()
